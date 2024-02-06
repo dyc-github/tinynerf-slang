@@ -4,7 +4,7 @@ from functools import cached_property
 from torch.utils.cpp_extension import load
 import torch
 
-_cuda = load(name="_cuda", sources=['src/cuda.cu'], verbose=True)
+_cuda = load(name="_cuda", sources=['src/cuda.cu'], verbose=True, build_directory='build')
 
 """UTILS: Scene contraction, Ray marching strategies, and Occupancy grid"""
 
