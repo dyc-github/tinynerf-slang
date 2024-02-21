@@ -3,8 +3,9 @@ from dataclasses import dataclass
 from functools import cached_property
 from torch.utils.cpp_extension import load
 import torch
+import slangpy
 
-_cuda = load(name="_cuda", sources=['src/cuda.cu'], verbose=True, build_directory='build')
+_slangpy = slangpy.loadModule('slang/compute_weights.slang')
 
 """UTILS: Scene contraction, Ray marching strategies, and Occupancy grid"""
 
@@ -195,7 +196,12 @@ class NerfWeights(torch.autograd.Function):
         sigmas = sigmas.contiguous()
         steps = steps.contiguous()
         info = info.contiguous()
-        weights = _cuda.compute_weights_fwd(sigmas, steps, info, threshold) # type: ignore
+
+        weights = torch.zeros_like(sigmas)        
+        n_rays = info.size(0)
+        print(weights, "choi") 
+        _slangpy.compute_weights_fwd(sigmas = sigmas, steps = steps, info=info, threshold = threshold, weights = weights, n_rays = n_rays).launchRaw(blockSize=(32, 1, 1), gridSize=(64, 1, 1)) # type: ignore
+        print(weights, "choi")
         ctx.save_for_backward(sigmas, steps, info, weights)
         return weights 
 
@@ -203,7 +209,7 @@ class NerfWeights(torch.autograd.Function):
     def backward(ctx: Any, grad_weights: torch.Tensor): # type: ignore
         grad_weights = grad_weights.contiguous()
         sigmas, steps, info, weights = ctx.saved_tensors
-        grad_sigmas = _cuda.compute_weights_bwd(sigmas, steps, info, weights, grad_weights) # type: ignore
+        grad_sigmas = _slangpy.compute_weights_bwd(sigmas, steps, info, weights, grad_weights) # type: ignore
         return grad_sigmas, None, None, None
 
 class NerfRenderer(torch.nn.Module):

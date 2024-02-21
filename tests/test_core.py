@@ -135,3 +135,15 @@ def test_ray_marcher_aabb():
     print((coords[mask] <= aabb[1]).size())
     print((coords[mask] >= aabb[0]) & (coords[mask] <= aabb[1]))
     assert torch.all((coords[mask] >= aabb[0]) & (coords[mask] <= aabb[1]))
+
+# Additional tests
+from src.core import NerfWeights
+
+def test_nerf_weights():
+    sigmas = torch.tensor([.5, .5, .5, .5, .5, .5])
+    steps = torch.tensor([1., .5, .1, .1, .5, 1.]) 
+    info = torch.tensor([5, 0])
+    threshold = 0
+    weights = NerfWeights.apply(sigmas, steps, info, threshold)
+    print(weights)
+    
