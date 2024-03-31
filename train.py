@@ -1,5 +1,8 @@
-#python train_vanilla.py --data data/lego --output data/output --method kplanes --batch_size 1024 --n_samples 1024 --scene_type aabb
-#python train.py --data data/nerf_synthetic/lego --datatype synthetic --output output --method vanilla --batch_size 1024 --n_samples 1024 --scene_type aabb
+#python train.py --data data/lego --datatype synthetic --output output --method vanilla --batch_size 1664 --n_samples 1024 --scene_type aabb
+#python train.py --data data/lego --datatype synthetic --output output --method vanilla --batch_size 1568 --n_samples 1024 --scene_type aabb
+#python train.py --data data/lego --datatype synthetic --output output --method vanilla --batch_size 4096 --n_samples 300 --scene_type aabb
+#python train.py --data data/lego --datatype synthetic --output output --method vanilla --batch_size 4096 --n_samples 384 --scene_type aabb
+
 import argparse
 import uuid
 from pathlib import Path
