@@ -135,3 +135,29 @@ def test_ray_marcher_aabb():
     print((coords[mask] <= aabb[1]).size())
     print((coords[mask] >= aabb[0]) & (coords[mask] <= aabb[1]))
     assert torch.all((coords[mask] >= aabb[0]) & (coords[mask] <= aabb[1]))
+
+# Additional tests
+from src.core import NerfWeights
+from src.slang.compute_weights_cuda import NerfWeightsCUDA
+
+def test_nerf_weights():
+    device = torch.device('cuda')
+    sigmas = torch.tensor([.5, .5, .5, .5, .5, .5], requires_grad=True, device=device)
+    steps = torch.tensor([1., .5, .1, .1, .5, 1.], device=device)
+    info = torch.tensor([[1, 10]], dtype=torch.int, device=device)
+    threshold = 0
+
+    weightsCUDA = NerfWeightsCUDA.apply(sigmas, steps, info, threshold)
+    lossCUDA = 1 - torch.sum(weightsCUDA) # for now we just compare to 1
+    lossCUDA.backward()
+    gradCUDA = sigmas.grad
+
+    weightsSlang = NerfWeights.apply(sigmas, steps, info, threshold)
+    lossSlang = 1 - torch.sum(weightsSlang) # for now we just compare to 1
+    lossSlang.backward()
+    gradSlang = sigmas.grad
+    
+    equalWeights = torch.isclose(weightsCUDA, weightsSlang)
+    assert(torch.all(equalWeights).tolist())    
+    equalGrad = torch.isclose(gradCUDA, gradSlang)
+    assert(torch.all(equalGrad).tolist())    
