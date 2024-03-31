@@ -5,7 +5,7 @@ from torch.utils.cpp_extension import load
 import torch
 import slangpy
 
-_slangpy = slangpy.loadModule('slang/compute_weights.slang')
+_slangpy = slangpy.loadModule('./src/slang/compute_weights.slang')
 
 """UTILS: Scene contraction, Ray marching strategies, and Occupancy grid"""
 
@@ -193,23 +193,28 @@ class RayProvider():
 class NerfWeights(torch.autograd.Function):
     @staticmethod
     def forward(ctx: Any, sigmas: torch.Tensor, steps: torch.Tensor, info: torch.Tensor, threshold: float) -> torch.Tensor: # type: ignore
+        device = sigmas.device
+
         sigmas = sigmas.contiguous()
         steps = steps.contiguous()
         info = info.contiguous()
 
-        weights = torch.zeros_like(sigmas)        
+        weights = torch.zeros_like(sigmas, device=device)        
         n_rays = info.size(0)
-        print(weights, "choi") 
-        _slangpy.compute_weights_fwd(sigmas = sigmas, steps = steps, info=info, threshold = threshold, weights = weights, n_rays = n_rays).launchRaw(blockSize=(32, 1, 1), gridSize=(64, 1, 1)) # type: ignore
-        print(weights, "choi")
+        _slangpy.compute_weights_fwd(sigmas = sigmas, steps = steps, info=info, threshold = threshold, weights = weights, n_rays = n_rays).launchRaw(blockSize=(5, 1, 1), gridSize=(1, 1, 1)) # type: ignore
         ctx.save_for_backward(sigmas, steps, info, weights)
         return weights 
 
     @staticmethod
     def backward(ctx: Any, grad_weights: torch.Tensor): # type: ignore
-        grad_weights = grad_weights.contiguous()
+        device = grad_weights.device
         sigmas, steps, info, weights = ctx.saved_tensors
-        grad_sigmas = _slangpy.compute_weights_bwd(sigmas, steps, info, weights, grad_weights) # type: ignore
+        
+        grad_weights = grad_weights.contiguous()
+        grad_sigmas = torch.zeros_like(sigmas, device=device)
+        n_rays = info.size(0)
+
+        _slangpy.compute_weights_bwd(sigmas = sigmas, steps = steps, info = info, weights = weights, grad_weights = grad_weights, grad_sigmas = grad_sigmas, n_rays = n_rays).launchRaw(blockSize=(5, 1, 1), gridSize=(1, 1, 1))  # type: ignore
         return grad_sigmas, None, None, None
 
 class NerfRenderer(torch.nn.Module):
