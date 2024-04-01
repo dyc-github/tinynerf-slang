@@ -6,6 +6,7 @@ import torch
 import slangpy
 
 _slangpy = slangpy.loadModule('./src/slang/compute_weights.slang')
+_cuda = load(name="_cuda", sources=['src/cuda.cu'], verbose=True, build_directory='build')
 
 """UTILS: Scene contraction, Ray marching strategies, and Occupancy grid"""
 
@@ -201,7 +202,11 @@ class NerfWeights(torch.autograd.Function):
 
         weights = torch.zeros_like(sigmas, device=device)        
         n_rays = info.size(0)
-        _slangpy.compute_weights_fwd(sigmas = sigmas, steps = steps, info=info, threshold = threshold, weights = weights, n_rays = n_rays).launchRaw(blockSize=(5, 1, 1), gridSize=(1, 1, 1)) # type: ignore
+
+        n_threads = 1024
+        n_blocks = (n_rays - 1) // n_threads + 1
+        
+        _slangpy.compute_weights(sigmas = sigmas, steps = steps, info=info, weights = weights, n_rays = n_rays).launchRaw(blockSize=(n_threads, 1, 1), gridSize=(n_blocks, 1, 1))
         ctx.save_for_backward(sigmas, steps, info, weights)
         return weights 
 
@@ -214,7 +219,10 @@ class NerfWeights(torch.autograd.Function):
         grad_sigmas = torch.zeros_like(sigmas, device=device)
         n_rays = info.size(0)
 
-        _slangpy.compute_weights_bwd(sigmas = sigmas, steps = steps, info = info, weights = weights, grad_weights = grad_weights, grad_sigmas = grad_sigmas, n_rays = n_rays).launchRaw(blockSize=(5, 1, 1), gridSize=(1, 1, 1))  # type: ignore
+        n_threads = 1024
+        n_blocks = (n_rays - 1) // n_threads + 1
+        
+        _slangpy.compute_weights.bwd(sigmas = (sigmas, grad_sigmas), steps = steps, info = info, weights = (weights, grad_weights), n_rays = n_rays).launchRaw(blockSize=(n_threads, 1, 1), gridSize=(n_blocks, 1, 1))
         return grad_sigmas, None, None, None
 
 class NerfRenderer(torch.nn.Module):

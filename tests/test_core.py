@@ -156,7 +156,7 @@ def test_nerf_weights():
     lossSlang = 1 - torch.sum(weightsSlang) # for now we just compare to 1
     lossSlang.backward()
     gradSlang = sigmas.grad
-    
+
     equalWeights = torch.isclose(weightsCUDA, weightsSlang)
     assert(torch.all(equalWeights).tolist())    
     equalGrad = torch.isclose(gradCUDA, gradSlang)
